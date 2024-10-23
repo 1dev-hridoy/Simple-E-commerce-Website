@@ -8,7 +8,6 @@ This project is a simple, single-page e-commerce website built using HTML, JavaS
 
 ![E-commerce Website Screenshot](https://i.ibb.co.com/4t3ssRm/Screenshot-2024-10-23-163354.png)
 
-*Add your screenshot image file to the project repository and update the image path above.*
 
 ## Features
 
