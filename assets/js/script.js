@@ -14,18 +14,11 @@ async function fetchProducts() {
 
 function createProductCard(product) {
     return `
-        <div class="bg-white rounded-lg shadow-md overflow-hidden flex flex-col">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden flex flex-col cursor-pointer" onclick="showProductDetails(${product.id})">
             <img src="${product.thumbnail}" alt="${product.title}" class="w-full h-48 object-cover">
             <div class="p-4 flex-grow flex flex-col">
                 <h2 class="text-xl font-semibold mb-2">${product.title}</h2>
-                <p class="text-gray-600 mb-2 flex-grow">${product.description.substring(0, 100)}...</p>
-                <div class="flex justify-between items-center">
-                    <span class="text-2xl font-bold text-blue-600">$${product.price}</span>
-                    <button onclick="addToCart(${product.id})" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
-                        Add to Cart
-                    </button>
-                </div>
-                <button onclick="showProductDetails(${product.id})" class="mt-2 text-blue-600 hover:underline">View Details</button>
+                <span class="text-2xl font-bold text-blue-600 mt-auto">$${product.price.toFixed(2)}</span>
             </div>
         </div>
     `;
@@ -38,10 +31,17 @@ function showProductDetails(productId) {
             <h2 class="text-2xl font-bold mb-4">${product.title}</h2>
             <img src="${product.thumbnail}" alt="${product.title}" class="w-full h-64 object-cover mb-4 rounded">
             <p class="mb-4">${product.description}</p>
-            <p class="text-xl font-bold text-blue-600 mb-2">$${product.price}</p>
+            <p class="text-xl font-bold text-blue-600 mb-2">$${product.price.toFixed(2)}</p>
             <p class="mb-2">Category: ${product.category}</p>
             <p class="mb-2">Brand: ${product.brand}</p>
-            <p>Rating: ${product.rating}/5</p>
+            <p class="mb-4">Rating: ${product.rating}/5</p>
+            <div class="flex items-center gap-4">
+                <label for="quantity" class="font-semibold">Quantity:</label>
+                <input type="number" id="quantity" min="1" value="1" class="border rounded p-2 w-20">
+                <button onclick="addToCart(${product.id})" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
+                    Add to Cart
+                </button>
+            </div>
         `;
         document.getElementById('modalContent').innerHTML = modalContent;
         document.getElementById('productModal').classList.remove('hidden');
@@ -50,14 +50,30 @@ function showProductDetails(productId) {
 
 function addToCart(productId) {
     const product = allProducts.find(p => p.id === productId);
-    if (product) {
+    const quantity = parseInt(document.getElementById('quantity').value);
+    if (product && quantity > 0) {
         const existingItem = cart.find(item => item.id === productId);
         if (existingItem) {
-            existingItem.quantity += 1;
+            existingItem.quantity += quantity;
         } else {
-            cart.push({ ...product, quantity: 1 });
+            cart.push({ ...product, quantity });
         }
         updateCart();
+        saveCartToLocalStorage();
+        document.getElementById('productModal').classList.add('hidden');
+    }
+}
+
+function removeFromCart(productId) {
+    const index = cart.findIndex(item => item.id === productId);
+    if (index !== -1) {
+        if (cart[index].quantity > 1) {
+            cart[index].quantity -= 1;
+        } else {
+            cart.splice(index, 1);
+        }
+        updateCart();
+        saveCartToLocalStorage();
     }
 }
 
@@ -71,13 +87,34 @@ function updateCart() {
     let count = 0;
 
     cart.forEach(item => {
-        cartItems.innerHTML += `<li>${item.title} (x${item.quantity}) - $${item.price * item.quantity}</li>`;
+        cartItems.innerHTML += `
+            <li class="flex justify-between items-center mb-2">
+                <span>${item.title} (x${item.quantity})</span>
+                <div>
+                    <span>$${(item.price * item.quantity).toFixed(2)}</span>
+                    <button onclick="removeFromCart(${item.id})" class="ml-2 text-red-600 hover:text-red-800">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                </div>
+            </li>`;
         total += item.price * item.quantity;
         count += item.quantity;
     });
 
     cartTotal.textContent = total.toFixed(2);
     cartCount.textContent = count;
+}
+
+function saveCartToLocalStorage() {
+    localStorage.setItem('cart', JSON.stringify(cart));
+}
+
+function loadCartFromLocalStorage() {
+    const savedCart = localStorage.getItem('cart');
+    if (savedCart) {
+        cart = JSON.parse(savedCart);
+        updateCart();
+    }
 }
 
 function filterProducts() {
@@ -113,10 +150,18 @@ function populateCategories(products) {
     });
 }
 
+function checkout() {
+    alert('Thank you for your purchase! This is where you would integrate a payment gateway in a real e-commerce site.');
+    cart = [];
+    updateCart();
+    saveCartToLocalStorage();
+}
+
 async function initializeApp() {
     allProducts = await fetchProducts();
     displayProducts(allProducts);
     populateCategories(allProducts);
+    loadCartFromLocalStorage();
 
     document.getElementById('searchInput').addEventListener('input', filterProducts);
     document.getElementById('categoryFilter').addEventListener('change', filterProducts);
@@ -126,6 +171,20 @@ async function initializeApp() {
     document.getElementById('cartButton').addEventListener('click', () => {
         document.getElementById('cartDropdown').classList.toggle('hidden');
     });
+    document.getElementById('checkoutButton').addEventListener('click', checkout);
+
+    // Close cart dropdown when clicking outside
+    document.addEventListener('click', (event) => {
+        const cartDropdown = document.getElementById('cartDropdown');
+        const cartButton = document.getElementById('cartButton');
+        if (!cartButton.contains(event.target) && !cartDropdown.contains(event.target)) {
+        
+            cartDropdown.classList.add('hidden');
+        }
+    });
+
+    // Hide preloader
+    document.getElementById('preloader').classList.add('hidden');
 }
 
 initializeApp();
